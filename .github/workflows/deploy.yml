@@ -1,57 +1,51 @@
-name: Build and Deploy
+name: Deploy
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out code
+      - name: Checkout repo
         uses: actions/checkout@v2
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
+      - name: Setup Node
+        uses: actions/setup-node@v1
         with:
-          node-version: '16'
+          node-version: 18
 
       - name: Install dependencies
-        run: npm install
-
-      - name: Run tests
-        run: npm test
+        uses: bahmutov/npm-install@v1
 
       - name: Build project
         run: npm run build
 
-      - name: Upload build artifacts
+      - name: Upload production-ready build files
         uses: actions/upload-artifact@v3
         with:
-          name: build-artifact
-          path: ./build
+          name: production-files
+          path: ./dist
 
   deploy:
-    runs-on: ubuntu-latest
+    name: Deploy
     needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Download build artifacts
+      - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          name: build-artifact
+          name: production-files
+          path: ./dist
 
-      - name: Deploy to server
-        env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-        run: |
-          # Deployment script goes here
-          # scp -i $DEPLOY_KEY -r ./build user@yourserver.com:/path/to/deploy
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
